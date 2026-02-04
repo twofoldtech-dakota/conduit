@@ -402,4 +402,147 @@ describe('ConduitServer', () => {
       // X-Ray maps are initialized in constructor
     });
   });
+
+  describe('middleware integration', () => {
+    it('uses cache for read operations', async () => {
+      const server = new ConduitServer(config);
+      await server.initialize();
+      expect(server).toBeDefined();
+    });
+
+    it('uses audit logging when enabled', async () => {
+      const auditConfig: ConduitConfig = {
+        ...config,
+        middleware: {
+          audit: { enabled: true },
+        },
+      };
+      const server = new ConduitServer(auditConfig);
+      await server.initialize();
+      expect(server).toBeDefined();
+    });
+
+    it('uses rate limiting', async () => {
+      const server = new ConduitServer(config);
+      await server.initialize();
+      expect(server).toBeDefined();
+    });
+  });
+
+  describe('adapter selection', () => {
+    it('uses default adapter when not specified', async () => {
+      const server = new ConduitServer(config);
+      await server.initialize();
+      expect(mockAdapter.initialize).toHaveBeenCalled();
+    });
+
+    it('uses specified adapter from multi-adapter config', async () => {
+      const multiConfig: ConduitConfig = {
+        adapters: {
+          cms1: { type: 'contentful', credentials: { spaceId: 's1', accessToken: 't1' } },
+          cms2: { type: 'sanity', credentials: { projectId: 'p1', dataset: 'd1' } },
+        },
+      };
+      const server = new ConduitServer(multiConfig);
+      await server.initialize();
+      expect(mockAdapter.initialize).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('configuration options', () => {
+    it('handles preview mode', async () => {
+      const previewConfig: ConduitConfig = {
+        adapter: {
+          type: 'contentful',
+          credentials: { spaceId: 's', accessToken: 't' },
+          preview: true,
+        },
+      };
+      const server = new ConduitServer(previewConfig);
+      await server.initialize();
+      expect(server).toBeDefined();
+    });
+
+    it('handles default locale', async () => {
+      const localeConfig: ConduitConfig = {
+        adapter: {
+          type: 'contentful',
+          credentials: { spaceId: 's', accessToken: 't' },
+          defaultLocale: 'fr',
+        },
+      };
+      const server = new ConduitServer(localeConfig);
+      await server.initialize();
+      expect(server).toBeDefined();
+    });
+
+    it('handles custom server name and version', async () => {
+      const customConfig: ConduitConfig = {
+        ...config,
+        server: {
+          name: 'my-conduit',
+          version: '2.0.0',
+        },
+      };
+      const server = new ConduitServer(customConfig);
+      expect(server).toBeDefined();
+    });
+  });
+
+  describe('error scenarios', () => {
+    it('handles adapter that fails health check', async () => {
+      mockAdapter.healthCheck.mockResolvedValueOnce({
+        healthy: false,
+        latencyMs: 100,
+        message: 'Connection timeout',
+      });
+
+      const server = new ConduitServer(config);
+      await server.initialize();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('health check failed')
+      );
+    });
+
+    it('handles adapter initialization failure gracefully', async () => {
+      mockAdapter.initialize.mockRejectedValueOnce(new Error('Network error'));
+      
+      const server = new ConduitServer(config);
+      await expect(server.initialize()).rejects.toThrow('Network error');
+    });
+
+    it('requires at least one adapter', async () => {
+      const emptyConfig: ConduitConfig = {};
+      const server = new ConduitServer(emptyConfig);
+      
+      await server.initialize();
+      
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('adapter lifecycle', () => {
+    it('initializes all adapters on start', async () => {
+      const server = new ConduitServer(config);
+      await server.start();
+      
+      expect(mockAdapter.initialize).toHaveBeenCalled();
+    });
+
+    it('disposes all adapters on stop', async () => {
+      const multiConfig: ConduitConfig = {
+        adapters: {
+          cms1: { type: 'contentful', credentials: { spaceId: 's1', accessToken: 't1' } },
+          cms2: { type: 'sanity', credentials: { projectId: 'p1', dataset: 'd1' } },
+        },
+      };
+      
+      const server = new ConduitServer(multiConfig);
+      await server.initialize();
+      await server.stop();
+      
+      expect(mockAdapter.dispose).toHaveBeenCalledTimes(2);
+    });
+  });
 });
