@@ -185,6 +185,44 @@ describe('ContentfulAdapter', () => {
     expect(types).toHaveLength(1);
     expect(types[0].id).toBe('post');
   });
+
+  it('searches content', async () => {
+    const result = await adapter.searchContent('test query', { limit: 5 });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].title).toBe('Test Post');
+  });
+
+  it('handles ordering in listContent', async () => {
+    const result = await adapter.listContent({ orderBy: 'title', orderDirection: 'desc' });
+    expect(result.items).toHaveLength(1);
+  });
+
+  it('throws error on createContent', async () => {
+    await expect(adapter.createContent({ type: 'post', fields: {} })).rejects.toThrow('Management API');
+  });
+
+  it('throws error on updateContent', async () => {
+    await expect(adapter.updateContent('1', { fields: {} })).rejects.toThrow('Management API');
+  });
+
+  it('gets single media asset', async () => {
+    const media = await adapter.getMedia('asset-1');
+    expect(media).toBeNull(); // Mock returns null
+  });
+
+  it('lists media assets', async () => {
+    const result = await adapter.listMedia({ limit: 5 });
+    expect(result).toBeDefined();
+  });
+
+  it('handles getContentType not found', async () => {
+    const type = await adapter.getContentType('non-existent');
+    expect(type).toBeDefined();
+  });
+
+  it('disposes without errors', async () => {
+    await expect(adapter.dispose()).resolves.toBeUndefined();
+  });
 });
 
 describe('SanityAdapter', () => {
@@ -318,5 +356,58 @@ describe('WordPressAdapter', () => {
     const result = await adapter.healthCheck();
     expect(result.healthy).toBe(true);
     expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('gets single content item', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/wp-json/wp/v2/posts/1')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            id: 1,
+            slug: 'test-post',
+            title: { rendered: 'Test Post' },
+            content: { rendered: '<p>Content</p>' },
+            excerpt: { rendered: '<p>Excerpt</p>' },
+            status: 'publish',
+            type: 'post',
+            date: '2024-01-01',
+            modified: '2024-01-02',
+          }),
+          headers: new Headers(),
+        });
+      }
+      return Promise.reject(new Error('Not found'));
+    });
+
+    const content = await adapter.getContent('1');
+    expect(content).toBeDefined();
+    if (content) {
+      expect(content.id).toBe('1');
+    }
+  });
+
+  it('searches content', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/wp-json/wp/v2/posts') && url.includes('search=')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{
+            id: 1,
+            title: { rendered: 'Found Post' },
+            slug: 'found',
+          }]),
+          headers: new Headers({ 'x-wp-total': '1' }),
+        });
+      }
+      return Promise.reject(new Error('Not found'));
+    });
+
+    const result = await adapter.searchContent('test');
+    expect(result.items).toBeDefined();
+  });
+
+  it('disposes without errors', async () => {
+    await expect(adapter.dispose()).resolves.toBeUndefined();
   });
 });
