@@ -274,6 +274,14 @@ npm run build
 | `OPTIMIZELY_CLIENT_ID` | OAuth client ID |
 | `OPTIMIZELY_CLIENT_SECRET` | OAuth client secret |
 
+## Documentation
+
+- [API Reference](docs/API.md) - Complete tool reference
+- [Adapter Configuration](docs/ADAPTERS.md) - Setup for each CMS
+- [X-Ray Architecture](docs/XRAY.md) - Audit system design
+- [Contributing](CONTRIBUTING.md) - Development guide
+- [Changelog](CHANGELOG.md) - Version history
+
 ## License
 
 MIT © Twofold Tech
