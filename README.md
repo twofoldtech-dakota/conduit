@@ -180,6 +180,29 @@ const server = new ConduitServer(config);
 await server.start();
 ```
 
+## Sitecore X-Ray (Premium)
+
+X-Ray is a comprehensive audit and knowledge graph system for Sitecore XP installations.
+
+### Features
+
+- **12 Analysis Algorithms**: Orphan detection, unused templates, broken links, security analysis, and more
+- **Health Scoring**: A-F grades with actionable recommendations
+- **Knowledge Graph**: Visualize relationships between items, templates, renderings
+- **Tiered Scanning**: Handles 100K+ items efficiently
+
+### MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `xray_scan` | Start a new audit scan |
+| `xray_status` | Check scan progress |
+| `xray_report` | Get issues and health score |
+| `xray_graph` | Get knowledge graph data |
+| `xray_health` | Quick health check |
+
+See [docs/XRAY.md](docs/XRAY.md) for full documentation.
+
 ## Adding Custom Adapters
 
 Implement the `ICMSAdapter` interface:
