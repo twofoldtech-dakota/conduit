@@ -1,0 +1,57 @@
+{
+  "name": "conduit-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Enterprise MCP server - unified access to any CMS through a single interface",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "conduit": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "cms",
+    "contentful",
+    "sanity",
+    "wordpress",
+    "headless-cms",
+    "ai",
+    "llm",
+    "model-context-protocol"
+  ],
+  "author": "Twofold Tech",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "contentful": "^10.6.0",
+    "@sanity/client": "^6.12.0",
+    "yaml": "^2.3.4",
+    "zod": "^3.22.4",
+    "lru-cache": "^10.2.0",
+    "pino": "^8.18.0",
+    "dotenv": "^16.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "tsx": "^4.7.0",
+    "vitest": "^1.2.2",
+    "@vitest/coverage-v8": "^1.2.2",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

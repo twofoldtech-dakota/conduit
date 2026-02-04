@@ -1,0 +1,119 @@
+# Conduit Configuration
+# Copy this file to conduit.yaml and fill in your credentials
+
+# =============================================================================
+# SINGLE ADAPTER MODE
+# Use this for connecting to a single CMS
+# =============================================================================
+
+# adapter:
+#   type: contentful
+#   credentials:
+#     spaceId: ${CONTENTFUL_SPACE_ID}
+#     accessToken: ${CONTENTFUL_ACCESS_TOKEN}
+#     # Optional: Management token for write operations
+#     # managementToken: ${CONTENTFUL_MANAGEMENT_TOKEN}
+#     # environment: master
+#   # preview: false  # Set to true to use preview API
+
+# =============================================================================
+# MULTI-ADAPTER MODE (Enterprise)
+# Use this to connect multiple CMS platforms simultaneously
+# =============================================================================
+
+adapters:
+  # Contentful adapter
+  contentful:
+    type: contentful
+    credentials:
+      spaceId: ${CONTENTFUL_SPACE_ID}
+      accessToken: ${CONTENTFUL_ACCESS_TOKEN}
+      # managementToken: ${CONTENTFUL_MANAGEMENT_TOKEN}
+      # environment: master
+    # preview: false
+
+  # Sanity adapter
+  sanity:
+    type: sanity
+    credentials:
+      projectId: ${SANITY_PROJECT_ID}
+      dataset: production
+      token: ${SANITY_TOKEN}
+      # apiVersion: '2024-01-01'
+    # preview: false
+
+  # WordPress adapter
+  wordpress:
+    type: wordpress
+    credentials:
+      url: ${WORDPRESS_URL}
+      # Option 1: Application Password (recommended)
+      username: ${WORDPRESS_USERNAME}
+      applicationPassword: ${WORDPRESS_APP_PASSWORD}
+      # Option 2: JWT token
+      # token: ${WORDPRESS_JWT_TOKEN}
+
+  # Sitecore XM Cloud adapter (Experience Edge GraphQL)
+  sitecore:
+    type: sitecore
+    credentials:
+      apiKey: ${SITECORE_API_KEY}
+      # endpoint: https://edge.sitecorecloud.io/api/graphql/v1
+      # siteName: ${SITECORE_SITE_NAME}
+
+  # Sitecore XP adapter (Item Web API / SSC)
+  sitecore-xp:
+    type: sitecore-xp
+    credentials:
+      url: ${SITECORE_XP_URL}
+      username: ${SITECORE_XP_USERNAME}
+      password: ${SITECORE_XP_PASSWORD}
+      # domain: sitecore
+    # preview: true  # Use master database instead of web
+
+  # Umbraco adapter (v12+ or Heartcore)
+  umbraco:
+    type: umbraco
+    credentials:
+      url: ${UMBRACO_URL}
+      apiKey: ${UMBRACO_API_KEY}
+      # isHeartcore: 'true'  # Set for Umbraco Heartcore SaaS
+
+  # Optimizely Content Cloud adapter
+  optimizely:
+    type: optimizely
+    credentials:
+      url: ${OPTIMIZELY_URL}
+      clientId: ${OPTIMIZELY_CLIENT_ID}
+      clientSecret: ${OPTIMIZELY_CLIENT_SECRET}
+
+# =============================================================================
+# MIDDLEWARE CONFIGURATION
+# =============================================================================
+
+middleware:
+  # Caching configuration
+  cache:
+    enabled: true
+    ttlMs: 60000  # 1 minute
+    maxSize: 500  # Max entries
+
+  # Rate limiting
+  rateLimit:
+    enabled: true
+    windowMs: 60000    # 1 minute window
+    maxRequests: 100   # Max requests per window
+
+  # Audit logging
+  audit:
+    enabled: true
+    level: info  # debug, info, warn, error
+    # logFile: ./conduit-audit.log  # Optional: file output
+
+# =============================================================================
+# SERVER CONFIGURATION
+# =============================================================================
+
+# server:
+#   name: conduit
+#   version: 1.0.0
