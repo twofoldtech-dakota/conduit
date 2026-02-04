@@ -25,6 +25,18 @@ import { UmbracoAdapter } from './adapters/umbraco.js';
 import { OptimizelyAdapter } from './adapters/optimizely.js';
 import type { ContentFilter } from './types/content.js';
 
+// X-Ray imports
+import {
+  XRayScanner,
+  analyzeXRayScan,
+  buildKnowledgeGraph,
+  filterIssues,
+  type ScanResult,
+  type AnalysisResult,
+  type XRayScanConfig,
+  DEFAULT_SCAN_CONFIG,
+} from './xray/index.js';
+
 // Adapter factory
 function createAdapter(type: AdapterType): ICMSAdapter {
   switch (type) {
@@ -55,6 +67,10 @@ export class ConduitServer {
   private audit: AuditMiddleware;
   private rateLimit: RateLimitMiddleware;
   private defaultAdapter?: string;
+
+  // X-Ray state
+  private xrayScans: Map<string, { scanner: XRayScanner; result: ScanResult; analysis?: AnalysisResult }> = new Map();
+  private lastXrayHealth: Map<string, { score: number; scanId: string; scannedAt: string; criticalIssues: number; topIssue: unknown }> = new Map();
 
   constructor(config: ConduitConfig) {
     this.config = config;
@@ -277,6 +293,73 @@ export class ConduitServer {
               },
             },
           },
+          // X-Ray tools (Sitecore XP Premium)
+          {
+            name: 'xray_scan',
+            description: 'Start a Sitecore X-Ray audit scan',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                adapter: { type: 'string', description: 'Adapter name (must be sitecore-xp)' },
+                rootPath: { type: 'string', description: 'Root path to scan (default: /sitecore/content)' },
+                includeTemplates: { type: 'boolean', description: 'Include templates (default: true)' },
+                includeMedia: { type: 'boolean', description: 'Include media (default: true)' },
+                includeRenderings: { type: 'boolean', description: 'Include renderings (default: true)' },
+                maxDepth: { type: 'number', description: 'Max depth (-1 for unlimited)' },
+                tier: { type: 'number', description: 'Scan tier: 1=index, 2=deep (default: 1)' },
+              },
+              required: ['adapter'],
+            },
+          },
+          {
+            name: 'xray_status',
+            description: 'Check X-Ray scan progress',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                scanId: { type: 'string', description: 'Scan ID' },
+              },
+              required: ['scanId'],
+            },
+          },
+          {
+            name: 'xray_report',
+            description: 'Get X-Ray analysis results',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                scanId: { type: 'string', description: 'Scan ID' },
+                category: { type: 'string', description: 'Filter by issue category' },
+                severity: { type: 'string', description: 'Filter by severity (critical, warning, info)' },
+              },
+              required: ['scanId'],
+            },
+          },
+          {
+            name: 'xray_graph',
+            description: 'Get knowledge graph from X-Ray scan',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                scanId: { type: 'string', description: 'Scan ID' },
+                nodeTypes: { type: 'array', items: { type: 'string' }, description: 'Filter node types' },
+                maxNodes: { type: 'number', description: 'Max nodes (default: 1000)' },
+                centerOn: { type: 'string', description: 'Item ID to center graph on' },
+              },
+              required: ['scanId'],
+            },
+          },
+          {
+            name: 'xray_health',
+            description: 'Quick X-Ray health check (from last scan)',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                adapter: { type: 'string', description: 'Adapter name' },
+              },
+              required: ['adapter'],
+            },
+          },
         ],
       };
     });
@@ -454,6 +537,133 @@ export class ConduitServer {
           results[name] = await adp.healthCheck();
         }
         return results;
+      }
+
+      // ============== X-Ray Tools ==============
+
+      case 'xray_scan': {
+        if (adapter.name !== 'sitecore-xp') {
+          throw new Error('X-Ray scan requires sitecore-xp adapter');
+        }
+
+        const config: Partial<XRayScanConfig> = {
+          ...DEFAULT_SCAN_CONFIG,
+          rootPath: (args.rootPath as string) || DEFAULT_SCAN_CONFIG.rootPath,
+          includeTemplates: args.includeTemplates !== false,
+          includeMedia: args.includeMedia !== false,
+          includeRenderings: args.includeRenderings !== false,
+          maxDepth: (args.maxDepth as number) ?? -1,
+          tier: (args.tier as 1 | 2 | 3) || 1,
+        };
+
+        const scanner = new XRayScanner(adapter as any, config);
+        const scanId = scanner.getResult().scanId;
+
+        // Store scanner and start scan in background
+        this.xrayScans.set(scanId, { scanner, result: scanner.getResult() });
+
+        // Run scan async
+        scanner.scan().then(result => {
+          const stored = this.xrayScans.get(scanId);
+          if (stored) {
+            stored.result = result;
+            // Run analysis
+            const analysis = analyzeXRayScan(result);
+            stored.analysis = analysis;
+            // Cache health for quick access
+            this.lastXrayHealth.set(adapterName || 'default', {
+              score: analysis.healthScore,
+              scanId,
+              scannedAt: new Date().toISOString(),
+              criticalIssues: analysis.issues.filter(i => i.severity === 'critical').length,
+              topIssue: analysis.issues[0] || null,
+            });
+          }
+        });
+
+        return { scanId, status: 'scanning' };
+      }
+
+      case 'xray_status': {
+        const scanId = args.scanId as string;
+        const stored = this.xrayScans.get(scanId);
+        
+        if (!stored) {
+          throw new Error(`Scan not found: ${scanId}`);
+        }
+
+        return {
+          scanId,
+          status: stored.result.status,
+          progress: stored.result.progress,
+        };
+      }
+
+      case 'xray_report': {
+        const scanId = args.scanId as string;
+        const stored = this.xrayScans.get(scanId);
+        
+        if (!stored) {
+          throw new Error(`Scan not found: ${scanId}`);
+        }
+
+        if (stored.result.status !== 'complete') {
+          return { status: stored.result.status, message: 'Scan not complete' };
+        }
+
+        if (!stored.analysis) {
+          stored.analysis = analyzeXRayScan(stored.result);
+        }
+
+        let issues = stored.analysis.issues;
+        if (args.category || args.severity) {
+          issues = filterIssues(issues, args.category as string, args.severity as string);
+        }
+
+        return {
+          healthScore: stored.analysis.healthScore,
+          healthGrade: stored.analysis.healthGrade,
+          issues,
+          stats: stored.analysis.stats,
+        };
+      }
+
+      case 'xray_graph': {
+        const scanId = args.scanId as string;
+        const stored = this.xrayScans.get(scanId);
+        
+        if (!stored) {
+          throw new Error(`Scan not found: ${scanId}`);
+        }
+
+        if (stored.result.status !== 'complete') {
+          return { status: stored.result.status, message: 'Scan not complete' };
+        }
+
+        return buildKnowledgeGraph(stored.result, {
+          nodeTypes: args.nodeTypes as any,
+          maxNodes: (args.maxNodes as number) || 1000,
+          centerOn: args.centerOn as string,
+        });
+      }
+
+      case 'xray_health': {
+        const health = this.lastXrayHealth.get(adapterName || 'default');
+        
+        if (!health) {
+          return {
+            healthScore: null,
+            lastScanAt: null,
+            message: 'No scan has been run yet. Use xray_scan first.',
+          };
+        }
+
+        return {
+          healthScore: health.score,
+          lastScanAt: health.scannedAt,
+          criticalIssues: health.criticalIssues,
+          topIssue: health.topIssue,
+        };
       }
 
       default:

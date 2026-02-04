@@ -12,7 +12,6 @@ import {
   type XRayScanConfig,
   type ScanResult,
   type ScanProgress,
-  type ScanStatus,
   type IndexedItem,
   type IndexedTemplate,
   type IndexedMedia,
@@ -35,10 +34,10 @@ interface SitecoreItem {
   ItemFields?: Array<{ Name: string; Value: string; Type?: string }>;
 }
 
-interface SitecoreSearchResult {
-  TotalCount: number;
-  ResultItems: SitecoreItem[];
-}
+// interface SitecoreSearchResult {
+//   TotalCount: number;
+//   ResultItems: SitecoreItem[];
+// }
 
 export class XRayScanner {
   private adapter: SitecoreXPAdapter;
@@ -447,10 +446,7 @@ export class XRayScanner {
 
   // ============== API Helpers ==============
 
-  private async fetchChildren(path: string): Promise<SitecoreItem[]> {
-    // Use adapter's internal fetch method via search
-    const searchQuery = `+_path:${path}/* +_database:${this.config.database}`;
-    
+  private async fetchChildren(_path: string): Promise<SitecoreItem[]> {
     // Access adapter's private fetch through content listing
     const result = await this.adapter.listContent({
       limit: 100,
@@ -461,10 +457,10 @@ export class XRayScanner {
     return result.items.map(item => ({
       ItemID: item.id,
       ItemName: item.title,
-      ItemPath: item.slug,
+      ItemPath: item.slug || '',
       TemplateID: (item._raw as SitecoreItem)?.TemplateID || '',
       TemplateName: item.type,
-      ParentID: this.extractParentId(item.slug),
+      ParentID: this.extractParentId(item.slug || ''),
       HasChildren: (item._raw as SitecoreItem)?.HasChildren,
       ItemUpdated: item.updatedAt,
       ItemLanguage: item.locale,

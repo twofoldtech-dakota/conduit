@@ -9,8 +9,6 @@ import {
   type AnalysisResult,
   type AnalysisStats,
   type Issue,
-  type IssueCategory,
-  type IssueSeverity,
 } from './types.js';
 
 export class XRayAnalyzer {
@@ -209,7 +207,7 @@ export class XRayAnalyzer {
     for (const [key, itemIds] of groups) {
       if (itemIds.length > 1) {
         const items = itemIds.map(id => this.scan.items.get(id)!);
-        const [templateId, name] = key.split(':');
+        const [, name] = key.split(':');
         
         this.addIssue({
           severity: 'info',

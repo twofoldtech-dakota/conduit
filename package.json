@@ -31,6 +31,19 @@
   ],
   "author": "Twofold Tech",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/twofoldtech-dakota/conduit.git"
+  },
+  "homepage": "https://github.com/twofoldtech-dakota/conduit#readme",
+  "bugs": {
+    "url": "https://github.com/twofoldtech-dakota/conduit/issues"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "contentful": "^10.6.0",
