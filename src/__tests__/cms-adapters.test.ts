@@ -19,7 +19,15 @@ describe('SitecoreAdapter', () => {
     mockFetch.mockReset();
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ value: [] }),
+      json: () => Promise.resolve({
+        data: {
+          search: {
+            total: 0,
+            pageInfo: { endCursor: '', hasNext: false },
+            results: [],
+          },
+        },
+      }),
       headers: new Headers(),
     });
 
@@ -55,10 +63,17 @@ describe('SitecoreAdapter', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
-        ItemID: '123',
-        ItemName: 'Test',
-        ItemPath: '/sitecore/content/test',
-        TemplateName: 'Article',
+        data: {
+          item: {
+            id: '123',
+            name: 'Test',
+            path: '/sitecore/content/test',
+            template: { id: 'tpl-1', name: 'Article' },
+            created: '2024-01-01',
+            updated: '2024-01-02',
+            fields: [],
+          },
+        },
       }),
       headers: new Headers(),
     });
@@ -88,10 +103,22 @@ describe('SitecoreXPAdapter', () => {
 
   beforeEach(async () => {
     mockFetch.mockReset();
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ value: [] }),
-      headers: new Headers(),
+    
+    // Mock authentication response
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/auth/login') || url.includes('/auth/whoami')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ access_token: 'test-token', expires_in: 3600, IsAuthenticated: true }),
+          headers: new Headers(),
+        });
+      }
+      // Default search response
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ TotalCount: 0, ResultItems: [] }),
+        headers: new Headers(),
+      });
     });
 
     adapter = new SitecoreXPAdapter();
@@ -123,13 +150,30 @@ describe('SitecoreXPAdapter', () => {
   });
 
   it('gets single content', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        ItemID: '456',
-        ItemName: 'Test XP',
-      }),
-      headers: new Headers(),
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/auth/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ access_token: 'test-token', IsAuthenticated: true }),
+          headers: new Headers(),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          ItemID: '456',
+          ItemName: 'Test XP',
+          ItemPath: '/sitecore/content/test',
+          TemplateName: 'Article',
+          TemplateID: 'tpl-1',
+          ItemLanguage: 'en',
+          ItemVersion: '1',
+          ItemCreated: '2024-01-01',
+          ItemUpdated: '2024-01-02',
+          ItemFields: [],
+        }),
+        headers: new Headers(),
+      });
     });
 
     const content = await adapter.getContent('456');

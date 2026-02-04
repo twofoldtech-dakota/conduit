@@ -50,7 +50,8 @@ describe('XRayScanner', () => {
     expect(result).toBeDefined();
     expect(result.scanId).toBeDefined();
     expect(result.status).toBe('pending');
-    expect(result.progress).toBe(0);
+    expect(result.progress).toBeDefined();
+    expect(result.progress.itemsScanned).toBe(0);
   });
 
   it('executes scan', async () => {
@@ -85,27 +86,21 @@ describe('XRayScanner', () => {
 
 describe('analyzeXRayScan', () => {
   it('analyzes completed scan', () => {
-    const scanResult: ScanResult = {
+    const scanResult: any = {
       scanId: 'scan-123',
       status: 'complete',
-      progress: 100,
+      progress: { phase: 'complete', itemsScanned: 1, totalEstimate: 1, currentPath: '', startedAt: new Date().toISOString(), errors: [] },
       startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
-      items: [
-        {
-          id: 'item-1',
-          path: '/sitecore/content/item1',
-          name: 'Item 1',
-          templateId: 'template-1',
-          templateName: 'Article',
-          fields: {},
-          children: [],
-          references: [],
-        },
-      ],
-      templates: [],
-      media: [],
-      renderings: [],
+      items: new Map(),
+      templates: new Map(),
+      media: new Map(),
+      renderings: new Map(),
+      childrenMap: new Map(),
+      templateUsage: new Map(),
+      renderingUsage: new Map(),
+      references: new Map(),
+      deepData: new Map(),
       config: {
         rootPath: '/sitecore/content',
         includeTemplates: true,
@@ -128,16 +123,21 @@ describe('analyzeXRayScan', () => {
   });
 
   it('calculates health score', () => {
-    const scanResult: ScanResult = {
+    const scanResult: any = {
       scanId: 'scan-456',
       status: 'complete',
-      progress: 100,
+      progress: { phase: 'complete', itemsScanned: 0, totalEstimate: 0, currentPath: '', startedAt: new Date().toISOString(), errors: [] },
       startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
-      items: [],
-      templates: [],
-      media: [],
-      renderings: [],
+      items: new Map(),
+      templates: new Map(),
+      media: new Map(),
+      renderings: new Map(),
+      childrenMap: new Map(),
+      templateUsage: new Map(),
+      renderingUsage: new Map(),
+      references: new Map(),
+      deepData: new Map(),
       config: {
         rootPath: '/sitecore/content',
         tier: 1,
@@ -151,37 +151,25 @@ describe('analyzeXRayScan', () => {
 
 describe('buildKnowledgeGraph', () => {
   it('builds graph from scan result', () => {
-    const scanResult: ScanResult = {
+    const itemsMap = new Map();
+    itemsMap.set('item-1', { id: 'item-1', path: '/sitecore/content/item1', name: 'Item 1', templateId: 'template-1' });
+    itemsMap.set('item-2', { id: 'item-2', path: '/sitecore/content/item2', name: 'Item 2', templateId: 'template-1' });
+
+    const scanResult: any = {
       scanId: 'scan-789',
       status: 'complete',
-      progress: 100,
+      progress: { phase: 'complete', itemsScanned: 2, totalEstimate: 2, currentPath: '', startedAt: new Date().toISOString(), errors: [] },
       startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
-      items: [
-        {
-          id: 'item-1',
-          path: '/sitecore/content/item1',
-          name: 'Item 1',
-          templateId: 'template-1',
-          templateName: 'Article',
-          fields: {},
-          children: ['item-2'],
-          references: [],
-        },
-        {
-          id: 'item-2',
-          path: '/sitecore/content/item2',
-          name: 'Item 2',
-          templateId: 'template-1',
-          templateName: 'Article',
-          fields: {},
-          children: [],
-          references: ['item-1'],
-        },
-      ],
-      templates: [],
-      media: [],
-      renderings: [],
+      items: itemsMap,
+      templates: new Map(),
+      media: new Map(),
+      renderings: new Map(),
+      childrenMap: new Map([['item-1', ['item-2']]]),
+      templateUsage: new Map(),
+      renderingUsage: new Map(),
+      references: new Map([['item-2', ['item-1']]]),
+      deepData: new Map(),
       config: {
         rootPath: '/sitecore/content',
         tier: 1,
@@ -198,26 +186,23 @@ describe('buildKnowledgeGraph', () => {
   });
 
   it('filters graph by node types', () => {
-    const scanResult: ScanResult = {
+    const itemsMap = new Map();
+    itemsMap.set('item-1', { id: 'item-1', path: '/sitecore/content/item1', name: 'Item 1', templateId: 'template-1' });
+
+    const scanResult: any = {
       scanId: 'scan-graph',
       status: 'complete',
-      progress: 100,
+      progress: { phase: 'complete', itemsScanned: 1, totalEstimate: 1, currentPath: '', startedAt: new Date().toISOString(), errors: [] },
       startedAt: new Date().toISOString(),
-      items: [
-        {
-          id: 'item-1',
-          path: '/sitecore/content/item1',
-          name: 'Item 1',
-          templateId: 'template-1',
-          templateName: 'Article',
-          fields: {},
-          children: [],
-          references: [],
-        },
-      ],
-      templates: [],
-      media: [],
-      renderings: [],
+      items: itemsMap,
+      templates: new Map(),
+      media: new Map(),
+      renderings: new Map(),
+      childrenMap: new Map(),
+      templateUsage: new Map(),
+      renderingUsage: new Map(),
+      references: new Map(),
+      deepData: new Map(),
       config: { rootPath: '/sitecore/content', tier: 1 },
     };
 
@@ -229,26 +214,30 @@ describe('buildKnowledgeGraph', () => {
   });
 
   it('limits max nodes', () => {
-    const items = Array.from({ length: 100 }, (_, i) => ({
-      id: `item-${i}`,
-      path: `/sitecore/content/item${i}`,
-      name: `Item ${i}`,
-      templateId: 'template-1',
-      templateName: 'Article',
-      fields: {},
-      children: [],
-      references: [],
-    }));
+    const itemsMap = new Map();
+    for (let i = 0; i < 100; i++) {
+      itemsMap.set(`item-${i}`, { 
+        id: `item-${i}`,
+        path: `/sitecore/content/item${i}`,
+        name: `Item ${i}`,
+        templateId: 'template-1',
+      });
+    }
 
-    const scanResult: ScanResult = {
+    const scanResult: any = {
       scanId: 'scan-large',
       status: 'complete',
-      progress: 100,
+      progress: { phase: 'complete', itemsScanned: 100, totalEstimate: 100, currentPath: '', startedAt: new Date().toISOString(), errors: [] },
       startedAt: new Date().toISOString(),
-      items,
-      templates: [],
-      media: [],
-      renderings: [],
+      items: itemsMap,
+      templates: new Map(),
+      media: new Map(),
+      renderings: new Map(),
+      childrenMap: new Map(),
+      templateUsage: new Map(),
+      renderingUsage: new Map(),
+      references: new Map(),
+      deepData: new Map(),
       config: { rootPath: '/sitecore/content', tier: 1 },
     };
 

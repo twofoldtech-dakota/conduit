@@ -46,7 +46,19 @@ vi.mock('contentful', () => ({
       skip: 0,
       limit: 10,
     }),
-    getAsset: vi.fn().mockResolvedValue(null),
+    getAsset: vi.fn().mockResolvedValue({
+      sys: { id: 'asset-1', createdAt: '2024-01-01', locale: 'en-US' },
+      fields: {
+        file: {
+          fileName: 'test.jpg',
+          contentType: 'image/jpeg',
+          url: '//images.ctfassets.net/test.jpg',
+          details: { size: 1024, image: { width: 800, height: 600 } },
+        },
+        title: 'Test Image',
+        description: 'Test description',
+      },
+    }),
   })),
 }));
 
@@ -207,7 +219,9 @@ describe('ContentfulAdapter', () => {
 
   it('gets single media asset', async () => {
     const media = await adapter.getMedia('asset-1');
-    expect(media).toBeNull(); // Mock returns null
+    expect(media).toBeDefined();
+    expect(media?.id).toBe('asset-1');
+    expect(media?.filename).toBe('test.jpg');
   });
 
   it('lists media assets', async () => {
@@ -396,8 +410,18 @@ describe('WordPressAdapter', () => {
             id: 1,
             title: { rendered: 'Found Post' },
             slug: 'found',
+            content: { rendered: '<p>Found content</p>' },
+            excerpt: { rendered: '<p>Found excerpt</p>' },
+            status: 'publish',
+            type: 'post',
+            date: '2024-01-01',
+            modified: '2024-01-02',
+            author: 1,
+            featured_media: 0,
+            categories: [],
+            tags: [],
           }]),
-          headers: new Headers({ 'x-wp-total': '1' }),
+          headers: new Headers({ 'x-wp-total': '1', 'x-wp-totalpages': '1' }),
         });
       }
       return Promise.reject(new Error('Not found'));
@@ -405,6 +429,7 @@ describe('WordPressAdapter', () => {
 
     const result = await adapter.searchContent('test');
     expect(result.items).toBeDefined();
+    expect(result.items.length).toBeGreaterThan(0);
   });
 
   it('disposes without errors', async () => {
