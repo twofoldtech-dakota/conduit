@@ -17,7 +17,16 @@
     "test:coverage": "vitest --run --coverage",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "prepare": "npm run build"
+    "docs:api": "typedoc --options typedoc.json",
+    "docs:index": "node scripts/generate-doc-index.mjs",
+    "docs:toc": "node scripts/update-toc.mjs",
+    "docs:lint": "remark -qf docs",
+    "docs:links": "node scripts/check-links.mjs",
+    "docs:format": "prettier -w \"**/*.md\"",
+    "docs:update": "npm run docs:api && npm run docs:index && npm run docs:toc && npm run docs:format",
+    "docs:check": "npm run docs:lint && npm run docs:links",
+    "prepare": "npm run build",
+    "postinstall": "husky install"
   },
   "keywords": [
     "mcp",
@@ -47,25 +56,41 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "contentful": "^10.6.0",
     "@sanity/client": "^6.12.0",
-    "yaml": "^2.3.4",
-    "zod": "^3.22.4",
+    "contentful": "^10.6.0",
+    "dotenv": "^16.4.1",
     "lru-cache": "^10.2.0",
     "pino": "^8.18.0",
-    "dotenv": "^16.4.1"
+    "yaml": "^2.3.4",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "typescript": "^5.3.3",
-    "tsx": "^4.7.0",
-    "vitest": "^1.2.2",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
     "@vitest/coverage-v8": "^1.2.2",
     "eslint": "^8.56.0",
-    "@typescript-eslint/eslint-plugin": "^6.19.0",
-    "@typescript-eslint/parser": "^6.19.0"
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "markdown-link-check": "^3.14.2",
+    "markdown-toc": "^1.2.0",
+    "prettier": "^3.8.1",
+    "remark-cli": "^12.0.1",
+    "remark-preset-lint-recommended": "^7.0.1",
+    "tsx": "^4.7.0",
+    "typedoc": "^0.28.16",
+    "typedoc-plugin-markdown": "^4.9.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.2"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "lint-staged": {
+    "**/*.md": [
+      "remark -qf",
+      "node scripts/check-links.mjs",
+      "prettier -w"
+    ]
   }
 }

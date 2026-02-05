@@ -1,0 +1,10 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "plugin": ["typedoc-plugin-markdown"],
+  "out": "docs/reference/api",
+  "hideGenerator": true,
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "categorizeByGroup": false,
+  "disableSources": true
+}

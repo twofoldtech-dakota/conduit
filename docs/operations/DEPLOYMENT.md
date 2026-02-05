@@ -3,6 +3,7 @@
 This guide describes supported deployment options for Conduit in enterprise environments.
 
 ## Prerequisites
+
 - Node.js 18+
 - Access credentials for target CMS adapters
 - Network egress to CMS APIs

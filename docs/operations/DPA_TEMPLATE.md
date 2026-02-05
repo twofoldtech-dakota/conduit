@@ -3,6 +3,7 @@
 This DPA template is provided as a starting point for customers subject to GDPR or similar regulations. Consult counsel before use.
 
 Key sections to complete:
+
 - Parties and roles (Controller/Processor)
 - Subject matter and duration of processing
 - Nature and purpose of processing

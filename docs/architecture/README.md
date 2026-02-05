@@ -1,0 +1,3 @@
+# Architecture
+
+- [ARCHITECTURE](ARCHITECTURE.md)
