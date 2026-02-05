@@ -1,0 +1,6 @@
+{
+  "ignorePatterns": [{ "pattern": "^https://github.com/.+/(issues|pull)/\\d+$" }],
+  "retryOn429": true,
+  "timeout": "10s",
+  "ignoreLocal": true
+}

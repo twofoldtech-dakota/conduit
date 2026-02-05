@@ -12,9 +12,9 @@ adapter:
   credentials:
     spaceId: ${CONTENTFUL_SPACE_ID}
     accessToken: ${CONTENTFUL_ACCESS_TOKEN}
-    environment: master  # optional, default: master
+    environment: master # optional, default: master
   defaultLocale: en-US
-  preview: false  # set true to use preview API
+  preview: false # set true to use preview API
 ```
 
 **Environment Variables:**
@@ -35,7 +35,7 @@ adapter:
   credentials:
     projectId: ${SANITY_PROJECT_ID}
     dataset: production
-    token: ${SANITY_TOKEN}  # optional for public datasets
+    token: ${SANITY_TOKEN} # optional for public datasets
     apiVersion: "2023-05-03"
   defaultLocale: en
 ```
@@ -84,7 +84,7 @@ adapter:
   type: sitecore
   credentials:
     apiKey: ${SITECORE_API_KEY}
-    endpoint: ${SITECORE_ENDPOINT}  # optional
+    endpoint: ${SITECORE_ENDPOINT} # optional
     siteName: ${SITECORE_SITE_NAME}
   defaultLocale: en
 ```
@@ -111,9 +111,9 @@ adapter:
     url: ${SITECORE_XP_URL}
     username: ${SITECORE_XP_USERNAME}
     password: ${SITECORE_XP_PASSWORD}
-    domain: sitecore  # optional, default: sitecore
+    domain: sitecore # optional, default: sitecore
   defaultLocale: en
-  preview: true  # true = master DB, false = web DB
+  preview: true # true = master DB, false = web DB
 ```
 
 **Environment Variables:**
@@ -127,6 +127,7 @@ adapter:
 **Capabilities:** Read ✅ | Write ✅ | Search ✅ | Media ✅
 
 **Premium Features:**
+
 - Layout/rendering manipulation
 - Page composition
 - X-Ray audit & knowledge graph
@@ -192,14 +193,14 @@ adapters:
     credentials:
       spaceId: ${CONTENTFUL_SPACE_ID}
       accessToken: ${CONTENTFUL_ACCESS_TOKEN}
-  
+
   corporate:
     type: sitecore-xp
     credentials:
       url: ${SITECORE_XP_URL}
       username: ${SITECORE_XP_USERNAME}
       password: ${SITECORE_XP_PASSWORD}
-  
+
   blog:
     type: wordpress
     credentials:
@@ -230,11 +231,15 @@ If no adapter is specified, the first configured adapter is used as default.
 Implement the `ICMSAdapter` interface:
 
 ```typescript
-import { BaseAdapter, type AdapterConfig, type AdapterCapabilities } from 'conduit-mcp';
+import {
+  BaseAdapter,
+  type AdapterConfig,
+  type AdapterCapabilities,
+} from "conduit-mcp";
 
 export class MyAdapter extends BaseAdapter {
-  readonly name = 'mycms';
-  readonly displayName = 'My CMS';
+  readonly name = "mycms";
+  readonly displayName = "My CMS";
   readonly capabilities: AdapterCapabilities = {
     search: true,
     media: true,
@@ -259,11 +264,16 @@ export class MyAdapter extends BaseAdapter {
     // Fetch single content item
   }
 
-  async listContent(filter?: ContentFilter): Promise<PaginatedResponse<Content>> {
+  async listContent(
+    filter?: ContentFilter,
+  ): Promise<PaginatedResponse<Content>> {
     // List content with pagination
   }
 
-  async searchContent(query: string, filter?: ContentFilter): Promise<PaginatedResponse<Content>> {
+  async searchContent(
+    query: string,
+    filter?: ContentFilter,
+  ): Promise<PaginatedResponse<Content>> {
     // Full-text search
   }
 
@@ -278,12 +288,12 @@ export class MyAdapter extends BaseAdapter {
 Register your adapter in `src/server.ts`:
 
 ```typescript
-import { MyAdapter } from './adapters/my-adapter.js';
+import { MyAdapter } from "./adapters/my-adapter.js";
 
 function createAdapter(type: AdapterType): ICMSAdapter {
   switch (type) {
     // ... existing adapters
-    case 'mycms':
+    case "mycms":
       return new MyAdapter();
   }
 }

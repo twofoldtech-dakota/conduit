@@ -9,6 +9,7 @@ Complete reference for all Conduit MCP tools.
 List content items with optional filters and pagination.
 
 **Input:**
+
 ```typescript
 {
   adapter?: string;      // Adapter name (uses default if omitted)
@@ -21,6 +22,7 @@ List content items with optional filters and pagination.
 ```
 
 **Output:**
+
 ```typescript
 {
   items: Content[];      // Array of content items
@@ -32,6 +34,7 @@ List content items with optional filters and pagination.
 ```
 
 **Example:**
+
 ```json
 {
   "tool": "content_list",
@@ -50,6 +53,7 @@ List content items with optional filters and pagination.
 Get a single content item by ID.
 
 **Input:**
+
 ```typescript
 {
   adapter?: string;      // Adapter name
@@ -59,6 +63,7 @@ Get a single content item by ID.
 ```
 
 **Output:**
+
 ```typescript
 {
   id: string;
@@ -75,6 +80,7 @@ Get a single content item by ID.
 ```
 
 **Example:**
+
 ```json
 {
   "tool": "content_get",
@@ -92,6 +98,7 @@ Get a single content item by ID.
 Full-text search across content.
 
 **Input:**
+
 ```typescript
 {
   adapter?: string;      // Adapter name
@@ -104,6 +111,7 @@ Full-text search across content.
 **Output:** Same as `content_list`
 
 **Example:**
+
 ```json
 {
   "tool": "content_search",
@@ -122,6 +130,7 @@ Full-text search across content.
 Create new content (requires write-enabled adapter).
 
 **Input:**
+
 ```typescript
 {
   adapter?: string;      // Adapter name
@@ -135,6 +144,7 @@ Create new content (requires write-enabled adapter).
 **Output:** Created `Content` object
 
 **Example:**
+
 ```json
 {
   "tool": "content_create",
@@ -157,6 +167,7 @@ Create new content (requires write-enabled adapter).
 Update existing content.
 
 **Input:**
+
 ```typescript
 {
   adapter?: string;      // Adapter name
@@ -170,6 +181,7 @@ Update existing content.
 **Output:** Updated `Content` object
 
 **Example:**
+
 ```json
 {
   "tool": "content_update",
@@ -192,6 +204,7 @@ Update existing content.
 List media assets.
 
 **Input:**
+
 ```typescript
 {
   adapter?: string;      // Adapter name
@@ -201,6 +214,7 @@ List media assets.
 ```
 
 **Output:**
+
 ```typescript
 {
   items: Media[];
@@ -212,6 +226,7 @@ List media assets.
 ```
 
 **Media object:**
+
 ```typescript
 {
   id: string;
@@ -233,6 +248,7 @@ List media assets.
 Get a single media asset.
 
 **Input:**
+
 ```typescript
 {
   adapter?: string;      // Adapter name
@@ -251,6 +267,7 @@ Get a single media asset.
 List all content types/models.
 
 **Input:**
+
 ```typescript
 {
   adapter?: string;      // Adapter name
@@ -258,11 +275,13 @@ List all content types/models.
 ```
 
 **Output:**
+
 ```typescript
 ContentType[]
 ```
 
 **ContentType:**
+
 ```typescript
 {
   id: string;
@@ -279,6 +298,7 @@ ContentType[]
 Get a content type definition with fields.
 
 **Input:**
+
 ```typescript
 {
   adapter?: string;      // Adapter name
@@ -297,6 +317,7 @@ Get a content type definition with fields.
 Check adapter health and connectivity.
 
 **Input:**
+
 ```typescript
 {
   adapter?: string;      // Specific adapter, or check all if omitted
@@ -304,6 +325,7 @@ Check adapter health and connectivity.
 ```
 
 **Output:**
+
 ```typescript
 {
   healthy: boolean;
@@ -313,6 +335,7 @@ Check adapter health and connectivity.
 ```
 
 Or for all adapters:
+
 ```typescript
 {
   [adapterName: string]: {
@@ -332,6 +355,7 @@ Or for all adapters:
 Start a new audit scan.
 
 **Input:**
+
 ```typescript
 {
   adapter: string;              // Must be sitecore-xp
@@ -345,6 +369,7 @@ Start a new audit scan.
 ```
 
 **Output:**
+
 ```typescript
 {
   scanId: string;
@@ -359,6 +384,7 @@ Start a new audit scan.
 Check scan progress.
 
 **Input:**
+
 ```typescript
 {
   scanId: string;
@@ -366,6 +392,7 @@ Check scan progress.
 ```
 
 **Output:**
+
 ```typescript
 {
   status: "pending" | "scanning" | "analyzing" | "complete" | "failed";
@@ -385,6 +412,7 @@ Check scan progress.
 Get analysis results.
 
 **Input:**
+
 ```typescript
 {
   scanId: string;
@@ -394,6 +422,7 @@ Get analysis results.
 ```
 
 **Output:**
+
 ```typescript
 {
   healthScore: number;          // 0-100
@@ -404,6 +433,7 @@ Get analysis results.
 ```
 
 **Issue categories:**
+
 - `orphan` - Orphaned items
 - `unused-template` - Unused templates
 - `unused-rendering` - Unused renderings
@@ -424,6 +454,7 @@ Get analysis results.
 Get knowledge graph.
 
 **Input:**
+
 ```typescript
 {
   scanId: string;
@@ -434,6 +465,7 @@ Get knowledge graph.
 ```
 
 **Output:**
+
 ```typescript
 {
   nodes: GraphNode[];
@@ -454,6 +486,7 @@ Get knowledge graph.
 Quick health check (cached from last scan).
 
 **Input:**
+
 ```typescript
 {
   adapter: string;
@@ -461,6 +494,7 @@ Quick health check (cached from last scan).
 ```
 
 **Output:**
+
 ```typescript
 {
   healthScore: number;
@@ -483,6 +517,7 @@ All tools return errors in this format:
 ```
 
 Common errors:
+
 - `Adapter not found: {name}` - Invalid adapter name
 - `{Operation} not supported by {adapter} adapter` - Capability not available
 - `No adapter configured` - No adapters in config

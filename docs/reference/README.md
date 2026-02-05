@@ -1,5 +1,5 @@
 # Reference
 
+- [ADAPTERS](ADAPTERS.md)
 - [API](API.md)
-- [Adapters](ADAPTERS.md)
-- [X-Ray](XRAY.md)
+- [XRAY](XRAY.md)

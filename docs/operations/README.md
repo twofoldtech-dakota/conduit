@@ -1,7 +1,7 @@
 # Operations
 
-Operational documentation for running Conduit in production.
-
-- [Enterprise Readiness](ENTERPRISE_READINESS.md)
-- [Deployment Guide](DEPLOYMENT.md)
-- [Troubleshooting](TROUBLESHOOTING.md)
+- [DEPLOYMENT](DEPLOYMENT.md)
+- [DPA_TEMPLATE](DPA_TEMPLATE.md)
+- [ENTERPRISE_LAUNCH_PLAN](ENTERPRISE_LAUNCH_PLAN.md)
+- [ENTERPRISE_READINESS](ENTERPRISE_READINESS.md)
+- [TROUBLESHOOTING](TROUBLESHOOTING.md)

@@ -1,0 +1,39 @@
+name: Docs Update
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+      - run: npm ci
+      - run: npm run build --if-present
+      - run: npm run docs:update
+      - run: npm run docs:check
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(docs): automated docs refresh"
+          title: "chore(docs): automated docs refresh"
+          branch: chore/auto-docs
+          delete-branch: true
+          add-paths: |
+            docs/**
+            typedoc.json
+            scripts/generate-doc-index.mjs
+            scripts/update-toc.mjs
+            scripts/check-links.mjs
+            .mlc.json
