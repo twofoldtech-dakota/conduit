@@ -1,8 +1,8 @@
 /**
  * Sitecore XM Cloud Adapter
- * 
+ *
  * Implements ICMSAdapter for Sitecore XM Cloud via Experience Edge GraphQL API.
- * Also supports Sitecore XP with Edge delivery.
+ * Supports both cloud Experience Edge and local CM Edge endpoints.
  */
 
 import {
@@ -32,8 +32,8 @@ interface SitecoreItem {
   path: string;
   url?: { path: string };
   template: { id: string; name: string };
-  created: string;
-  updated: string;
+  created?: string;
+  updated?: string;
   language?: { name: string };
   fields?: Array<{
     name: string;
@@ -63,7 +63,7 @@ interface SitecoreMediaItem {
   size?: number;
   mimeType?: string;
   dimensions?: { width: number; height: number };
-  created: string;
+  created?: string;
 }
 
 export class SitecoreAdapter extends BaseAdapter {
@@ -85,6 +85,7 @@ export class SitecoreAdapter extends BaseAdapter {
   private apiKey!: string;
   private defaultLanguage: string = 'en';
   private siteName?: string;
+  private isLocalEndpoint: boolean = false;
 
   async initialize(config: AdapterConfig): Promise<void> {
     this.apiKey = config.credentials.apiKey;
@@ -92,8 +93,12 @@ export class SitecoreAdapter extends BaseAdapter {
     this.siteName = config.credentials.siteName;
 
     // Experience Edge endpoint
-    this.endpoint = config.credentials.endpoint || 
+    this.endpoint = config.credentials.endpoint ||
       'https://edge.sitecorecloud.io/api/graphql/v1';
+
+    // Detect local CM endpoint (different schema from cloud Edge)
+    this.isLocalEndpoint = this.endpoint.includes('localhost') ||
+      this.endpoint.includes('.local');
   }
 
   private async graphql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
@@ -111,7 +116,7 @@ export class SitecoreAdapter extends BaseAdapter {
     }
 
     const result = await response.json() as GraphQLResponse<T>;
-    
+
     if (result.errors?.length) {
       throw new Error(`GraphQL error: ${result.errors[0].message}`);
     }
@@ -122,17 +127,19 @@ export class SitecoreAdapter extends BaseAdapter {
   async healthCheck(): Promise<HealthCheckResult> {
     const start = Date.now();
     try {
-      await this.graphql<{ site: { name: string } }>(`
-        query { 
-          site { 
-            name 
-          } 
+      await this.graphql<{ site: { siteInfoCollection: Array<{ name: string }> } }>(`
+        query {
+          site {
+            siteInfoCollection {
+              name
+            }
+          }
         }
       `);
       return {
         healthy: true,
         latencyMs: Date.now() - start,
-        message: 'Connected to Sitecore Experience Edge',
+        message: `Connected to Sitecore ${this.isLocalEndpoint ? 'local CM' : 'Experience Edge'}`,
       };
     } catch (error) {
       return {
@@ -145,7 +152,7 @@ export class SitecoreAdapter extends BaseAdapter {
 
   async getContent(id: string, locale?: string): Promise<Content | null> {
     const language = locale || this.defaultLanguage;
-    
+
     const data = await this.graphql<SitecoreItemResult>(`
       query GetItem($path: String!, $language: String!) {
         item(path: $path, language: $language) {
@@ -154,9 +161,6 @@ export class SitecoreAdapter extends BaseAdapter {
           path
           url { path }
           template { id name }
-          created
-          updated
-          language { name }
           fields {
             name
             value
@@ -169,8 +173,18 @@ export class SitecoreAdapter extends BaseAdapter {
     return data.item ? this.transformItem(data.item) : null;
   }
 
+  private async resolvePathToId(path: string): Promise<string | null> {
+    const data = await this.graphql<SitecoreItemResult>(`
+      query ResolvePath($path: String!, $language: String!) {
+        item(path: $path, language: $language) {
+          id
+        }
+      }
+    `, { path, language: this.defaultLanguage });
+    return data.item?.id || null;
+  }
+
   async listContent(filter?: ContentFilter): Promise<PaginatedResponse<Content>> {
-    const language = filter?.locale || this.defaultLanguage;
     const first = filter?.limit || 10;
     const after = filter?.skip ? String(filter.skip) : undefined;
 
@@ -180,23 +194,30 @@ export class SitecoreAdapter extends BaseAdapter {
       rootPath = `/sitecore/content/${this.siteName}`;
     }
 
-    const templateFilter = filter?.type 
-      ? `AND _templates: "${filter.type}"`
-      : '';
+    // Local CM Edge requires GUID for _path, resolve it first
+    const rootId = await this.resolvePathToId(rootPath);
+    if (!rootId) {
+      return { items: [], total: 0, skip: 0, limit: first, hasMore: false };
+    }
+
+    const whereConditions: string[] = [
+      `{ name: "_path", value: "${rootId}", operator: CONTAINS }`
+    ];
+
+    if (filter?.type) {
+      whereConditions.push(`{ name: "_templates", value: "${filter.type}" }`);
+    }
+
+    const whereClause = whereConditions.length > 1
+      ? `{ AND: [${whereConditions.join(', ')}] }`
+      : whereConditions[0];
 
     const data = await this.graphql<SitecoreSearchResults>(`
-      query SearchContent($rootPath: String!, $language: String!, $first: Int!, $after: String) {
+      query SearchContent($first: Int!, $after: String) {
         search(
-          where: {
-            AND: [
-              { name: "_path", value: $rootPath, operator: CONTAINS }
-              ${templateFilter}
-            ]
-          }
+          where: ${whereClause}
           first: $first
           after: $after
-          language: $language
-          orderBy: { name: "_updated", direction: DESC }
         ) {
           total
           pageInfo {
@@ -209,9 +230,6 @@ export class SitecoreAdapter extends BaseAdapter {
             path
             url { path }
             template { id name }
-            created
-            updated
-            language { name }
             fields {
               name
               value
@@ -220,7 +238,7 @@ export class SitecoreAdapter extends BaseAdapter {
           }
         }
       }
-    `, { rootPath, language, first, after });
+    `, { first, after });
 
     return {
       items: data.search.results.map(item => this.transformItem(item)),
@@ -232,18 +250,21 @@ export class SitecoreAdapter extends BaseAdapter {
   }
 
   async searchContent(query: string, filter?: ContentFilter): Promise<PaginatedResponse<Content>> {
-    const language = filter?.locale || this.defaultLanguage;
     const first = filter?.limit || 10;
 
+    // Local CM Edge supports _name, _path, _templates, _hasLayout, _language
+    // Cloud Experience Edge supports _fulltext
+    const searchField = this.isLocalEndpoint ? '_name' : '_fulltext';
+
     const data = await this.graphql<SitecoreSearchResults>(`
-      query SearchContent($query: String!, $language: String!, $first: Int!) {
+      query SearchContent($query: String!, $first: Int!) {
         search(
           where: {
-            name: "_fulltext"
+            name: "${searchField}"
             value: $query
+            operator: CONTAINS
           }
           first: $first
-          language: $language
         ) {
           total
           pageInfo {
@@ -256,16 +277,15 @@ export class SitecoreAdapter extends BaseAdapter {
             path
             url { path }
             template { id name }
-            created
-            updated
             fields {
               name
               value
+              jsonValue
             }
           }
         }
       }
-    `, { query, language, first });
+    `, { query, first });
 
     return {
       items: data.search.results.map(item => this.transformItem(item)),
@@ -288,36 +308,42 @@ export class SitecoreAdapter extends BaseAdapter {
     throw new Error('Sitecore Experience Edge is read-only. Use Sitecore Management API for write operations.');
   }
 
-  async getMedia(id: string): Promise<Media | null> {
+  async getMedia(id: string, locale?: string): Promise<Media | null> {
+    const language = locale || this.defaultLanguage;
+
     const data = await this.graphql<{ item: SitecoreMediaItem | null }>(`
-      query GetMedia($path: String!) {
-        item(path: $path) {
+      query GetMedia($path: String!, $language: String!) {
+        item(path: $path, language: $language) {
           id
           name
           path
-          url
-          ... on MediaItem {
-            size
-            mimeType
-            dimensions { width height }
+          url { path }
+          fields {
+            name
+            value
           }
-          created
         }
       }
-    `, { path: id });
+    `, { path: id, language });
 
-    return data.item ? this.transformMedia(data.item) : null;
+    if (!data.item) return null;
+    return this.transformMedia(data.item as unknown as SitecoreMediaItem);
   }
 
   async listMedia(filter?: { limit?: number; skip?: number }): Promise<PaginatedResponse<Media>> {
     const first = filter?.limit || 10;
+
+    const mediaId = await this.resolvePathToId('/sitecore/media library');
+    if (!mediaId) {
+      return { items: [], total: 0, skip: 0, limit: first, hasMore: false };
+    }
 
     const data = await this.graphql<SitecoreSearchResults>(`
       query ListMedia($first: Int!) {
         search(
           where: {
             name: "_path"
-            value: "/sitecore/media library"
+            value: "${mediaId}"
             operator: CONTAINS
           }
           first: $first
@@ -329,7 +355,6 @@ export class SitecoreAdapter extends BaseAdapter {
             name
             path
             url { path }
-            created
           }
         }
       }
@@ -345,13 +370,15 @@ export class SitecoreAdapter extends BaseAdapter {
   }
 
   async getContentTypes(): Promise<ContentType[]> {
-    // Get templates from Sitecore
+    const templatesId = await this.resolvePathToId('/sitecore/templates');
+    if (!templatesId) return [];
+
     const data = await this.graphql<SitecoreSearchResults>(`
       query GetTemplates {
         search(
           where: {
             name: "_path"
-            value: "/sitecore/templates"
+            value: "${templatesId}"
             operator: CONTAINS
           }
           first: 100
@@ -375,14 +402,14 @@ export class SitecoreAdapter extends BaseAdapter {
         id: item.id,
         name: item.name,
         description: item.path,
-        fields: [], // Would need additional query for field definitions
+        fields: [],
       }));
   }
 
   async getContentType(id: string): Promise<ContentType | null> {
     const data = await this.graphql<SitecoreItemResult>(`
-      query GetTemplate($path: String!) {
-        item(path: $path) {
+      query GetTemplate($path: String!, $language: String!) {
+        item(path: $path, language: $language) {
           id
           name
           path
@@ -397,7 +424,7 @@ export class SitecoreAdapter extends BaseAdapter {
           }
         }
       }
-    `, { path: id });
+    `, { path: id, language: this.defaultLanguage });
 
     if (!data.item) return null;
 
@@ -422,15 +449,35 @@ export class SitecoreAdapter extends BaseAdapter {
 
   private transformItem(item: SitecoreItem): Content {
     const fields: Record<string, unknown> = {};
-    
+
+    // Extract timestamps from fields if not available as top-level properties
+    let createdAt = item.created;
+    let updatedAt = item.updated;
+
     for (const field of item.fields || []) {
       fields[field.name] = field.jsonValue ?? field.value;
+
+      // Extract Sitecore system timestamps from fields (local CM Edge)
+      if (!createdAt && field.name === '__Created' && field.jsonValue) {
+        const val = (field.jsonValue as { value?: string }).value;
+        if (val) createdAt = val;
+      }
+      if (!updatedAt && field.name === '__Updated' && field.jsonValue) {
+        const val = (field.jsonValue as { value?: string }).value;
+        if (val) updatedAt = val;
+      }
     }
 
-    // Extract title from common field names
-    const title = (fields.Title as string) || 
-                  (fields.PageTitle as string) || 
-                  (fields.Headline as string) || 
+    // Sitecore jsonValue wraps strings as { value: "..." } — unwrap for title
+    const unwrap = (val: unknown): string | undefined => {
+      if (typeof val === 'string') return val;
+      if (val && typeof val === 'object' && 'value' in val) return (val as { value: string }).value;
+      return undefined;
+    };
+
+    const title = unwrap(fields.Title) ||
+                  unwrap(fields.PageTitle) ||
+                  unwrap(fields.Headline) ||
                   item.name;
 
     return {
@@ -438,9 +485,9 @@ export class SitecoreAdapter extends BaseAdapter {
       type: item.template.name,
       title,
       slug: item.url?.path || item.path,
-      status: 'published', // Experience Edge only serves published content
-      createdAt: item.created,
-      updatedAt: item.updated,
+      status: 'published',
+      createdAt: createdAt || new Date().toISOString(),
+      updatedAt: updatedAt || createdAt || new Date().toISOString(),
       locale: item.language?.name,
       fields,
       _raw: item,
@@ -456,7 +503,7 @@ export class SitecoreAdapter extends BaseAdapter {
       url: item.url,
       width: item.dimensions?.width,
       height: item.dimensions?.height,
-      createdAt: item.created,
+      createdAt: item.created || new Date().toISOString(),
     };
   }
 }

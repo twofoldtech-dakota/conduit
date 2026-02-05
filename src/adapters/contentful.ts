@@ -5,7 +5,9 @@
  * Supports content delivery API and content management API.
  */
 
-import { createClient, type ContentfulClientApi, type Entry, type Asset, type ContentType as CFContentType } from 'contentful';
+import contentful from 'contentful';
+const { createClient } = contentful;
+import type { ContentfulClientApi, Entry, Asset, ContentType as CFContentType } from 'contentful';
 import {
   BaseAdapter,
   type AdapterCapabilities,

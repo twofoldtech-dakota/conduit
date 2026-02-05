@@ -11,9 +11,10 @@ import { WordPressAdapter } from '../adapters/wordpress.js';
 import { createAdapter } from '../adapters/index.js';
 import type { Content, Media, ContentType } from '../types/content.js';
 
-// Mock contentful client
+// Mock contentful client (default export with createClient)
 vi.mock('contentful', () => ({
-  createClient: vi.fn(() => ({
+  default: {
+    createClient: vi.fn(() => ({
     getEntries: vi.fn().mockResolvedValue({
       items: [
         {
@@ -60,6 +61,7 @@ vi.mock('contentful', () => ({
       },
     }),
   })),
+  },
 }));
 
 // Mock sanity client
