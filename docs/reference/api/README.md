@@ -207,7 +207,7 @@ X-Ray is a comprehensive audit and knowledge graph system for Sitecore XP instal
 | `xray_graph`  | Get knowledge graph data    |
 | `xray_health` | Quick health check          |
 
-See [docs/XRAY.md](docs/XRAY.md) for full documentation.
+See [docs/reference/XRAY.md](_media/XRAY.md) for full documentation.
 
 ## Adding Custom Adapters
 
@@ -284,9 +284,9 @@ npm run build
 
 ## Documentation
 
-- [API Reference](docs/API.md) - Complete tool reference
-- [Adapter Configuration](docs/ADAPTERS.md) - Setup for each CMS
-- [X-Ray Architecture](docs/XRAY.md) - Audit system design
+- [API Reference](_media/API.md) - Complete tool reference
+- [Adapter Configuration](_media/ADAPTERS.md) - Setup for each CMS
+- [X-Ray Architecture](_media/XRAY.md) - Audit system design
 - [Contributing](_media/CONTRIBUTING.md) - Development guide
 - [Changelog](_media/CHANGELOG.md) - Version history
 

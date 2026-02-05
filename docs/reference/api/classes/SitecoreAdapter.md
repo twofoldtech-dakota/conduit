@@ -199,13 +199,17 @@ Get all content types/models defined in the CMS.
 
 ### getMedia()
 
-> **getMedia**(`id`): `Promise`\<[`Media`](../interfaces/Media.md) \| `null`\>
+> **getMedia**(`id`, `locale?`): `Promise`\<[`Media`](../interfaces/Media.md) \| `null`\>
 
 Get a single media item by ID.
 
 #### Parameters
 
 ##### id
+
+`string`
+
+##### locale?
 
 `string`
 
