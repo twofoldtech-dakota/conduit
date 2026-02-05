@@ -18,6 +18,7 @@ X-Ray scans a Sitecore instance via API, analyzes the collected data for issues,
 ### What We Scan
 
 **Via SSC API (existing adapter)**
+
 - Content items: ID, path, template, fields, parent, children
 - Templates: ID, fields, inheritance chain, standard values
 - Renderings: Definition items under /sitecore/layout/renderings
@@ -25,6 +26,7 @@ X-Ray scans a Sitecore instance via API, analyzes the collected data for issues,
 - Layout data: `__Renderings` and `__Final Renderings` fields
 
 **Extracted from Fields**
+
 - Reference links: Droptree, Droplink, Multilist, Treelist fields
 - Media references: Image fields, File fields
 - Internal links: Rich Text link parsing
@@ -214,11 +216,14 @@ Final: clamp(0, 100)
 ```json
 {
   "nodes": [
-    { "id": "guid", "type": "item", "label": "Home", "path": "/sitecore/content/Home" }
+    {
+      "id": "guid",
+      "type": "item",
+      "label": "Home",
+      "path": "/sitecore/content/Home"
+    }
   ],
-  "edges": [
-    { "source": "guid1", "target": "guid2", "type": "parent-of" }
-  ]
+  "edges": [{ "source": "guid1", "target": "guid2", "type": "parent-of" }]
 }
 ```
 

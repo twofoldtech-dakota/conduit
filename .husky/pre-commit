@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
+npm run docs:index
+npm run docs:toc
+npm run docs:format
+npx lint-staged

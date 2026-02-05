@@ -10,6 +10,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import http from 'http';
 
 import { getAdapterConfigs, type ConduitConfig, type AdapterType } from './config/loader.js';
 import { CacheMiddleware } from './middleware/cache.js';
@@ -67,6 +68,19 @@ export class ConduitServer {
   private audit: AuditMiddleware;
   private rateLimit: RateLimitMiddleware;
   private defaultAdapter?: string;
+
+  // Optional HTTP server for health/metrics
+  private httpServer?: http.Server;
+  private httpPort: number = parseInt(process.env.CONDUIT_HTTP_PORT || '', 10) || 0;
+
+  // Metrics (minimal Prometheus-style)
+  private metrics = {
+    requestTotal: 0,
+    requestFailures: 0,
+    requestDurationSecondsSum: 0,
+    requestDurationSecondsCount: 0,
+    toolRequestTotal: new Map<string, number>(),
+  };
 
   // X-Ray state
   private xrayScans: Map<string, { scanner: XRayScanner; result: ScanResult; analysis?: AnalysisResult }> = new Map();
@@ -367,6 +381,9 @@ export class ConduitServer {
     // Handle tool calls
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
+      const start = process.hrtime.bigint();
+      this.metrics.requestTotal++;
+      this.metrics.toolRequestTotal.set(name, (this.metrics.toolRequestTotal.get(name) || 0) + 1);
       
       try {
         // Rate limiting
@@ -374,6 +391,11 @@ export class ConduitServer {
 
         const result = await this.handleTool(name, args as Record<string, unknown>);
         
+        const end = process.hrtime.bigint();
+        const durationSec = Number(end - start) / 1e9;
+        this.metrics.requestDurationSecondsSum += durationSec;
+        this.metrics.requestDurationSecondsCount += 1;
+
         return {
           content: [
             {
@@ -383,6 +405,7 @@ export class ConduitServer {
           ],
         };
       } catch (error) {
+        this.metrics.requestFailures++;
         const message = error instanceof Error ? error.message : String(error);
         return {
           content: [
@@ -676,6 +699,12 @@ export class ConduitServer {
    */
   async start(): Promise<void> {
     await this.initialize();
+
+    // Start optional HTTP server for /health and /metrics if enabled
+    const httpEnabled = (process.env.CONDUIT_HTTP_ENABLED || '').toLowerCase() === 'true' || this.httpPort > 0;
+    if (httpEnabled) {
+      await this.startHttpServer();
+    }
     
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
@@ -688,5 +717,71 @@ export class ConduitServer {
     for (const adapter of this.adapters.values()) {
       await adapter.dispose();
     }
+    await new Promise<void>((resolve) => {
+      if (this.httpServer) {
+        this.httpServer.close(() => resolve());
+      } else {
+        resolve();
+      }
+    });
+  }
+
+  /**
+   * Minimal HTTP server exposing /health and /metrics
+   */
+  private async startHttpServer(): Promise<void> {
+    const port = this.httpPort || 8080;
+    this.httpServer = http.createServer(async (req, res) => {
+      try {
+        if (!req.url) {
+          res.statusCode = 400;
+          res.end('Bad Request');
+          return;
+        }
+        if (req.url.startsWith('/health')) {
+          const statuses: Record<string, unknown> = {};
+          for (const [name, adp] of this.adapters) {
+            try {
+              statuses[name] = await adp.healthCheck();
+            } catch (e) {
+              statuses[name] = { healthy: false, message: (e as Error).message };
+            }
+          }
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ status: 'ok', adapters: statuses }));
+          return;
+        }
+        if (req.url.startsWith('/metrics')) {
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'text/plain; version=0.0.4');
+          const lines: string[] = [];
+          lines.push('# HELP conduit_request_total Total MCP tool requests processed');
+          lines.push('# TYPE conduit_request_total counter');
+          lines.push(`conduit_request_total ${this.metrics.requestTotal}`);
+          lines.push('# HELP conduit_request_failures_total Total MCP tool request failures');
+          lines.push('# TYPE conduit_request_failures_total counter');
+          lines.push(`conduit_request_failures_total ${this.metrics.requestFailures}`);
+          lines.push('# HELP conduit_request_duration_seconds_sum Total time spent processing requests in seconds');
+          lines.push('# TYPE conduit_request_duration_seconds summary');
+          lines.push(`conduit_request_duration_seconds_sum ${this.metrics.requestDurationSecondsSum}`);
+          lines.push(`conduit_request_duration_seconds_count ${this.metrics.requestDurationSecondsCount}`);
+          for (const [tool, count] of this.metrics.toolRequestTotal) {
+            lines.push(`conduit_tool_request_total{tool="${tool}"} ${count}`);
+          }
+          res.end(lines.join('\n'));
+          return;
+        }
+        res.statusCode = 404;
+        res.end('Not Found');
+      } catch (err) {
+        res.statusCode = 500;
+        res.end('Internal Server Error');
+      }
+    });
+
+    await new Promise<void>((resolve) => {
+      this.httpServer!.listen(port, () => resolve());
+    });
   }
 }

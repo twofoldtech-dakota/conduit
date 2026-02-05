@@ -1,0 +1,13 @@
+# Exclude sources and dev artifacts
+src/
+coverage/
+.github/
+docs/
+*.test.ts
+*.spec.ts
+vite.config.*
+vitest.config.*
+
+# Local
+.env
+.DS_Store
